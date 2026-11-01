@@ -16,8 +16,10 @@ const publicPath = fileURLToPath(new URL("../public/", import.meta.url));
 logging.set_level(logging.NONE);
 Object.assign(wisp.options, {
 	allow_udp_streams: false,
-	hostname_blacklist: [/example\.com/],
-	dns_servers: ["1.1.1.3", "1.0.0.3"],
+	hostname_blacklist: [/example\\.com/],
+	// Use standard DNS instead of the family-filtered resolvers. Video hosts
+	// and their CDN domains should not be filtered at the proxy DNS layer.
+	dns_servers: ["1.1.1.1", "1.0.0.1"],
 });
 
 const fastify = Fastify({
@@ -71,9 +73,7 @@ fastify.server.on("listening", () => {
 	console.log(`\thttp://localhost:${address.port}`);
 	console.log(`\thttp://${hostname()}:${address.port}`);
 	console.log(
-		`\thttp://${
-			address.family === "IPv6" ? `[${address.address}]` : address.address
-		}:${address.port}`
+		`\thttp://${address.family === "IPv6" ? `[${address.address}]` : address.address}:${address.port}`
 	);
 });
 
