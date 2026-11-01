@@ -88,16 +88,18 @@ form.addEventListener("submit", async (event) => {
     const url = search(address.value, searchEngine.value);
     const iframe = document.createElement("iframe");
     iframe.id = "sj-frame";
-    iframe.style.width = "100%";
-    iframe.style.height = "80vh";
-    iframe.style.border = "0";
+    iframe.title = "Proxied website";
+    document.body.classList.add("proxy-active");
     document.body.appendChild(iframe);
 
     const frame = controller.createFrame(iframe, { plugins: [] });
     frame.go(url);
   } catch (err) {
+    document.body.classList.remove("proxy-active");
+    document.getElementById("sj-frame")?.remove();
     error.textContent = "Failed to initialize the proxy connection.";
-    errorCode.textContent = err instanceof Error ? err.stack || err.message : String(err);
+    errorCode.textContent =
+      err instanceof Error ? err.stack || err.message : String(err);
     controllerPromise = null;
   }
 });
