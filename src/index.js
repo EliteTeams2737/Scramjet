@@ -1,15 +1,21 @@
 import { createServer } from "node:http";
-import { fileURLToPath } from "url";
+import { createRequire } from "node:module";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { hostname } from "node:os";
 import { server as wisp, logging } from "@mercuryworkshop/wisp-js/server";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 
 import { scramjetPath } from "@mercuryworkshop/scramjet/path";
-import { libcurlPath } from "@mercuryworkshop/libcurl-transport";
-import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
 
+const require = createRequire(import.meta.url);
+const packageDir = (name) => dirname(require.resolve(name));
 const publicPath = fileURLToPath(new URL("../public/", import.meta.url));
+
+const controllerPath = packageDir("@mercuryworkshop/scramjet-controller");
+const utilsPath = packageDir("@mercuryworkshop/scramjet-utils");
+const libcurlPath = packageDir("@mercuryworkshop/libcurl-transport");
 
 logging.set_level(logging.NONE);
 Object.assign(wisp.options, {
@@ -23,13 +29,16 @@ const fastify = Fastify({
     return createServer()
       .on("request", (req, res) => {
         res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-        // Deliberately omit COEP: require-corp. It can block third-party
-        // video-player frames that do not send compatible COEP/CORP headers.
         handler(req, res);
       })
       .on("upgrade", (req, socket, head) => {
-        if (req.url.endsWith("/wisp/")) wisp.routeRequest(req, socket, head);
-        else socket.end();
+        const pathname = new URL(req.url ?? "/", "http://localhost").pathname;
+        if (pathname === "/wisp/") {
+          req.url = pathname;
+          wisp.routeRequest(req, socket, head);
+        } else {
+          socket.end();
+        }
       });
   },
 });
@@ -38,26 +47,28 @@ fastify.register(fastifyStatic, {
   root: publicPath,
   decorateReply: true,
 });
-
 fastify.register(fastifyStatic, {
   root: scramjetPath,
   prefix: "/scram/",
   decorateReply: false,
 });
-
+fastify.register(fastifyStatic, {
+  root: controllerPath,
+  prefix: "/controller/",
+  decorateReply: false,
+});
+fastify.register(fastifyStatic, {
+  root: utilsPath,
+  prefix: "/utils/",
+  decorateReply: false,
+});
 fastify.register(fastifyStatic, {
   root: libcurlPath,
   prefix: "/libcurl/",
   decorateReply: false,
 });
 
-fastify.register(fastifyStatic, {
-  root: baremuxPath,
-  prefix: "/baremux/",
-  decorateReply: false,
-});
-
-fastify.setNotFoundHandler((res, reply) => {
+fastify.setNotFoundHandler((request, reply) => {
   return reply.code(404).type("text/html").sendFile("404.html");
 });
 
